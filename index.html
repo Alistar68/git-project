@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ночной город сегодня: Canvas vs SVG</title>
+    <style> 
+        body {
+            margin: 0; 
+            padding: 20px; 
+            /* [ТРЕБОВАНИЕ: ФОН СТРАНИЦЫ] */
+            background: linear-gradient(to bottom, #0B1026 0%, #1D2140 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: sans-serif;
+            color: #fff; 
+        } 
+
+        h1, p { 
+            text-align: center; 
+            margin-bottom: 5px; 
+        } 
+
+        .container {
+            display: flex;
+            gap: 60px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .canvas-wrapper, .svg-wrapper {
+            background: transparent;
+            border: 2px solid #3f446e;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        canvas, svg {
+            display: block;
+            background: transparent;
+        }
+    </style> 
+</head> 
+<body> 
+
+    <h1>Анимация: Городская ночь</h1> 
+    <p>Окна в зданиях случайно загораются и гаснут автоматически при загрузке холста.</p> 
+    <p> Сравнение технологий HTML5 Canvas и svg</p>
+    <div class="container"> 
+        <div class="canvas-wrapper"> 
+            <h2 style="text-align: center; font-size: 18px;">Вариант: HTML5 Canvas</h2> 
+            <canvas id="cityCanvas" width="500" height="400"></canvas> 
+        </div> 
+
+        <div class="svg-wrapper"> 
+            <h2 style="text-align: center; font-size: 18px;">Вариант: SVG</h2> 
+            <svg id="citySvg" width="500" height="400" xmlns="http://www.w3.org/2000/svg"></svg> 
+        </div> 
+    </div> 
+
+<script> 
+        /* [ТРЕБОВАНИЕ: ПРОГРАММНОЕ РИСОВАНИЕ БЕЗ КАРТИНОК] */
+        const WIDTH = 500;
+        const HEIGHT = 400;
+
+        const buildingsData = [ 
+            { x: 10,  w: 70,  h: 250, color: '#151930' },
+            { x: 60,  w: 90,  h: 320, color: '#0F1224' },
+            { x: 130, w: 80,  h: 200, color: '#1A1E36' },
+            { x: 190, w: 110, h: 280, color: '#0F1224' },
+            { x: 280, w: 75,  h: 340, color: '#0A0D1A' },
+            { x: 340, w: 90,  h: 220, color: '#1A1E36' },
+            { x: 410, w: 80,  h: 290, color: '#111429' }
+        ];
+
+        const COLOR_WINDOW_ON = '#FFDE59';
+        const COLOR_WINDOW_OFF = '#242946';
+
+        //  ЛОГИКА ДЛЯ HTML5 CANVAS //
+        
+        /* [ТРЕБОВАНИЕ: CANVAS - Инициализация контекста] */
+        const canvas = document.getElementById('cityCanvas');
+        const ctx = canvas.getContext('2d');
+        let canvasWindows = [];
+
+        function initCanvas() { 
+            buildingsData.forEach(b => {
+                const rows = Math.floor((b.h - 40) / 20); 
+                const cols = Math.floor((b.w - 20) / 15); 
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        canvasWindows.push({
+                            x: b.x + 10 + (c * 15),
+                            y: HEIGHT - b.h + 20 + (r * 20),
+                            isOn: Math.random() > 0.5
+                        });
+                    }
+                }
+            });
+        }
+
+        function drawCanvas() { 
+            ctx.clearRect(0, 0, WIDTH, HEIGHT); 
+
+            // Луна
+            ctx.beginPath();
+            ctx.arc(420, 70, 30, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFFEE4';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#FFFEE4';
+            ctx.fill();
+            ctx.shadowBlur = 0; // Сброс эффекта свечения
+
+            // Здания
+            buildingsData.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.fillRect(b.x, HEIGHT - b.h, b.w, b.h); 
+            });
+
+            // Окна
+            canvasWindows.forEach(w => {
+                ctx.fillStyle = w.isOn ? COLOR_WINDOW_ON : COLOR_WINDOW_OFF; 
+                ctx.fillRect(w.x, w.y, 8, 12);
+            });
+        }
+
+        function updateCanvasAnimate() { 
+            canvasWindows.forEach(w => {
+                /* [ТРЕБОВАНИЕ: СЛУЧАЙНОЕ МИГАНИЕ (CANVAS)] */
+                if (Math.random() < 0.005) {
+                    w.isOn = !w.isOn;
+                }
+            });
+            drawCanvas();
+            requestAnimationFrame(updateCanvasAnimate); 
+        }
+
+        //  ЛОГИКА ДЛЯ SVG // 
+
+        /* [ТРЕБОВАНИЕ: SVG - Инициализация контейнера] */
+        const svg = document.getElementById('citySvg');
+        let svgWindowsElements = [];
+
+        function initSvg() { 
+            // Луна
+            const moon = document.createElementNS("http://www.w3.org/2000/svg", "circle"); 
+            moon.setAttribute("cx", "420");
+            moon.setAttribute("cy", "70");
+            moon.setAttribute("r", "30");
+            moon.setAttribute("fill", "#FFFEE4");
+            moon.style.filter = "drop-shadow(0px 0px 10px #FFFEE4)";
+            svg.appendChild(moon);
+
+            // Здания и окна
+            buildingsData.forEach(b => {
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect"); 
+                rect.setAttribute("x", b.x);
+                rect.setAttribute("y", HEIGHT - b.h);
+                rect.setAttribute("width", b.w);
+                rect.setAttribute("height", b.h);
+                rect.setAttribute("fill", b.color);
+                svg.appendChild(rect);
+
+                const rows = Math.floor((b.h - 40) / 20); 
+                const cols = Math.floor((b.w - 20) / 15); 
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const win = document.createElementNS("http://www.w3.org/2000/svg", "rect"); 
+                        const winX = b.x + 10 + (c * 15);
+                        const winY = HEIGHT - b.h + 20 + (r * 20);
+                        const isOn = Math.random() > 0.5;
+
+                        win.setAttribute("x", winX.toString());
+                        win.setAttribute("y", winY.toString());
+                        win.setAttribute("width", "8");
+                        win.setAttribute("height", "12");
+                        win.setAttribute("fill", isOn ? COLOR_WINDOW_ON : COLOR_WINDOW_OFF); 
+                        
+                        svg.appendChild(win);
+                        svgWindowsElements.push(win); // Сохраняем ссылку на элемент DOM
+                    }
+                }
+            });
+        }
+
+        function updateSvgAnimate() { 
+            svgWindowsElements.forEach(win => {
+                /* [ТРЕБОВАНИЕ: СЛУЧАЙНОЕ МИГАНИЕ (SVG)] */
+                if (Math.random() < 0.01) {
+                    const currentFill = win.getAttribute("fill");
+                    const newFill = (currentFill === COLOR_WINDOW_ON) ? COLOR_WINDOW_OFF : COLOR_WINDOW_ON; 
+                    win.setAttribute("fill", newFill);
+                }
+            });
+        }
+
+        //  [ТРЕБОВАНИЕ: АВТОМАТИЧЕСКИЙ ЗАПУСК ПРИ ЗАГРУЗКЕ ХОЛСТА] // 
+        window.onload = function() { 
+            initCanvas();
+            updateCanvasAnimate();
+
+            initSvg();
+            setInterval(updateSvgAnimate, 100); 
+        }; 
+</script> 
+</body> 
+</html>
